@@ -478,24 +478,37 @@ class ForexSentimentAnalyzer:
             processed_text = self.preprocessor.preprocess_for_transformer(headline)
             finbert_result = self.finbert_pipeline(processed_text)
             
-            # Get the highest scoring prediction
-            best_pred = max(finbert_result, key=lambda x: x['score'])
-            label_map = {'LABEL_0': 'bullish', 'LABEL_1': 'neutral', 'LABEL_2': 'bearish'}
-            
-            results['finbert'] = {
-                'label': label_map[best_pred['label']],
-                'score': float(best_pred['score'])
-            }
-            
-            # Determine primary model based on confidence
-            if results['finbert']['score'] >= 0.80:
-                results['primary'] = 'finbert'
-            elif results['nb']:
-                results['primary'] = 'nb'
+            # FinBERT returns nested list: [[{'label': 'Positive', 'score': 0.99}, ...]]
+            if finbert_result and len(finbert_result) > 0 and len(finbert_result[0]) > 0:
+                scores = finbert_result[0]  # Get the inner list
+                
+                # Get the highest scoring prediction
+                best_pred = max(scores, key=lambda x: x['score'])
+                
+                # Map FinBERT labels to our format (Positive=bullish, Negative=bearish, Neutral=neutral)
+                label_map = {
+                    'Positive': 'bullish', 
+                    'Negative': 'bearish', 
+                    'Neutral': 'neutral'
+                }
+                
+                results['finbert'] = {
+                    'label': label_map[best_pred['label']],
+                    'score': float(best_pred['score'])
+                }
+                
+                # Determine primary model based on confidence
+                if results['finbert']['score'] >= 0.80:
+                    results['primary'] = 'finbert'
+                elif results['nb']:
+                    results['primary'] = 'nb'
+                else:
+                    results['primary'] = 'finbert'
             else:
-                results['primary'] = 'finbert'
+                logger.warning("FinBERT returned unexpected result format")
+                results['primary'] = 'nb' if results['nb'] else None
         else:
-            results['primary'] = 'nb'
+            results['primary'] = 'nb' if results['nb'] else None
         
         return results
 
