@@ -83,14 +83,26 @@ class TextPreprocessor:
         # Clean text
         text = self.clean_text(text)
         
-        # Tokenize
-        tokens = word_tokenize(text)
+        # Tokenize - with fallback if NLTK punkt is not available
+        try:
+            tokens = word_tokenize(text)
+        except Exception as e:
+            logger.warning(f"NLTK tokenizer failed, using fallback: {e}")
+            # Simple fallback tokenization
+            tokens = text.split()
         
-        # Remove stopwords and lemmatize
-        tokens = [self.lemmatizer.lemmatize(token) for token in tokens 
-                 if token not in self.stop_words and len(token) > 2]
+        # Remove stopwords and lemmatize - with fallbacks
+        processed_tokens = []
+        for token in tokens:
+            if len(token) > 2 and token not in self.stop_words:
+                if self.lemmatizer:
+                    try:
+                        token = self.lemmatizer.lemmatize(token)
+                    except Exception:
+                        pass  # Use original token if lemmatization fails
+                processed_tokens.append(token)
         
-        return ' '.join(tokens)
+        return ' '.join(processed_tokens)
     
     def preprocess_for_transformer(self, text: str) -> str:
         """Light preprocessing for transformer models"""
