@@ -397,19 +397,51 @@ class ForexSentimentAnalyzer:
         # Load traditional ML model
         tfidf_path = self.model_save_path / 'tfidf_nb_model.pkl'
         if tfidf_path.exists():
-            self.tfidf_pipeline = joblib.load(tfidf_path)
-            logger.info("Loaded TF-IDF + NB model")
+            try:
+                self.tfidf_pipeline = joblib.load(tfidf_path)
+                logger.info("Loaded TF-IDF + NB model")
+            except Exception as e:
+                logger.error(f"Failed to load TF-IDF model: {e}")
+                self.tfidf_pipeline = None
+        else:
+            logger.info("TF-IDF model not found, will train new model")
         
         # Load FinBERT model
         finbert_path = self.model_save_path / 'finbert_finetuned'
         if finbert_path.exists():
-            self.finbert_pipeline = pipeline(
-                "text-classification",
-                model=str(finbert_path),
-                tokenizer=str(finbert_path),
-                return_all_scores=True
-            )
-            logger.info("Loaded FinBERT model")
+            try:
+                self.finbert_pipeline = pipeline(
+                    "text-classification",
+                    model=str(finbert_path),
+                    tokenizer=str(finbert_path),
+                    return_all_scores=True
+                )
+                logger.info("Loaded fine-tuned FinBERT model")
+            except Exception as e:
+                logger.error(f"Failed to load fine-tuned FinBERT: {e}")
+                logger.info("Attempting to load pre-trained FinBERT...")
+                try:
+                    self.finbert_pipeline = pipeline(
+                        "text-classification",
+                        model="yiyanghkust/finbert-tone",
+                        return_all_scores=True
+                    )
+                    logger.info("Loaded pre-trained FinBERT model")
+                except Exception as e2:
+                    logger.error(f"Failed to load pre-trained FinBERT: {e2}")
+                    self.finbert_pipeline = None
+        else:
+            logger.info("Fine-tuned FinBERT not found, trying pre-trained...")
+            try:
+                self.finbert_pipeline = pipeline(
+                    "text-classification",
+                    model="yiyanghkust/finbert-tone",
+                    return_all_scores=True
+                )
+                logger.info("Loaded pre-trained FinBERT model")
+            except Exception as e:
+                logger.error(f"Failed to load pre-trained FinBERT: {e}")
+                self.finbert_pipeline = None
     
     def predict(self, headline: str) -> Dict:
         """Predict sentiment for a given headline"""
