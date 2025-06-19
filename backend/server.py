@@ -86,16 +86,16 @@ class SentimentRequest(BaseModel):
 
 class SentimentResponse(BaseModel):
     headline: str
-    finbert: Dict[str, Any] = None
-    nb: Dict[str, Any] = None
-    primary: str = None
+    finbert: Optional[Dict[str, Any]] = None
+    nb: Optional[Dict[str, Any]] = None
+    primary: Optional[str] = None
 
 class PredictionHistory(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     headline: str
-    finbert_result: Dict[str, Any] = None
-    nb_result: Dict[str, Any] = None
-    primary_model: str = None
+    finbert_result: Optional[Dict[str, Any]] = None
+    nb_result: Optional[Dict[str, Any]] = None
+    primary_model: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 # Existing routes
