@@ -169,8 +169,17 @@ async def get_model_info():
     info = {
         "traditional_ml": bool(sentiment_analyzer.tfidf_pipeline),
         "finbert": bool(sentiment_analyzer.finbert_pipeline),
-        "evaluation_results": sentiment_analyzer.evaluation_results if hasattr(sentiment_analyzer, 'evaluation_results') else None
+        "models_trained": hasattr(sentiment_analyzer, 'evaluation_results') and sentiment_analyzer.evaluation_results is not None
     }
+    
+    # Add evaluation summary if available
+    if hasattr(sentiment_analyzer, 'evaluation_results') and sentiment_analyzer.evaluation_results:
+        info["evaluation_summary"] = {}
+        for model_name, results in sentiment_analyzer.evaluation_results.items():
+            if 'accuracy' in results:
+                info["evaluation_summary"][model_name] = {
+                    "accuracy": float(results['accuracy'])
+                }
     
     return info
 
