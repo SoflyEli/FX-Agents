@@ -221,67 +221,85 @@ class ForexSentimentAnalyzer:
         """Fine-tune FinBERT model"""
         logger.info("Training FinBERT model")
         
-        # Load tokenizer and model
-        model_name = "yiyanghkust/finbert-tone"
-        self.finbert_tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.finbert_model = AutoModelForSequenceClassification.from_pretrained(
-            model_name, num_labels=3
-        )
-        
-        # Prepare dataset
-        train_texts = train_df['processed_transformer'].tolist()
-        train_labels = train_df['label_encoded'].tolist()
-        
-        train_encodings = self.finbert_tokenizer(
-            train_texts, truncation=True, padding=True, max_length=128
-        )
-        
-        train_dataset = Dataset.from_dict({
-            'input_ids': train_encodings['input_ids'],
-            'attention_mask': train_encodings['attention_mask'],
-            'labels': train_labels
-        })
-        
-        # Training arguments
-        training_args = TrainingArguments(
-            output_dir=str(self.model_save_path / 'finbert_checkpoints'),
-            num_train_epochs=3,
-            per_device_train_batch_size=16,
-            per_device_eval_batch_size=16,
-            warmup_steps=100,
-            weight_decay=0.01,
-            logging_dir=str(self.model_save_path / 'logs'),
-            logging_steps=50,
-            evaluation_strategy="no",
-            save_strategy="epoch",
-            load_best_model_at_end=False,
-            learning_rate=2e-5,
-        )
-        
-        # Create trainer
-        trainer = Trainer(
-            model=self.finbert_model,
-            args=training_args,
-            train_dataset=train_dataset,
-            tokenizer=self.finbert_tokenizer,
-        )
-        
-        # Train model
-        trainer.train()
-        
-        # Save model
-        trainer.save_model(str(self.model_save_path / 'finbert_finetuned'))
-        self.finbert_tokenizer.save_pretrained(str(self.model_save_path / 'finbert_finetuned'))
-        
-        # Create pipeline for inference
-        self.finbert_pipeline = pipeline(
-            "text-classification",
-            model=str(self.model_save_path / 'finbert_finetuned'),
-            tokenizer=str(self.model_save_path / 'finbert_finetuned'),
-            return_all_scores=True
-        )
-        
-        logger.info("FinBERT training completed")
+        try:
+            # Load tokenizer and model
+            model_name = "yiyanghkust/finbert-tone"
+            self.finbert_tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.finbert_model = AutoModelForSequenceClassification.from_pretrained(
+                model_name, num_labels=3
+            )
+            
+            # Prepare dataset
+            train_texts = train_df['processed_transformer'].tolist()
+            train_labels = train_df['label_encoded'].tolist()
+            
+            train_encodings = self.finbert_tokenizer(
+                train_texts, truncation=True, padding=True, max_length=128
+            )
+            
+            train_dataset = Dataset.from_dict({
+                'input_ids': train_encodings['input_ids'],
+                'attention_mask': train_encodings['attention_mask'],
+                'labels': train_labels
+            })
+            
+            # Training arguments - more conservative for demo
+            training_args = TrainingArguments(
+                output_dir=str(self.model_save_path / 'finbert_checkpoints'),
+                num_train_epochs=1,  # Reduced for faster training
+                per_device_train_batch_size=8,  # Reduced batch size
+                per_device_eval_batch_size=8,
+                warmup_steps=50,
+                weight_decay=0.01,
+                logging_dir=str(self.model_save_path / 'logs'),
+                logging_steps=10,
+                evaluation_strategy="no",
+                save_strategy="epoch",
+                load_best_model_at_end=False,
+                learning_rate=5e-5,  # Slightly higher learning rate
+                no_cuda=torch.cuda.is_available() == False,  # Use CPU if no GPU
+            )
+            
+            # Create trainer
+            trainer = Trainer(
+                model=self.finbert_model,
+                args=training_args,
+                train_dataset=train_dataset,
+                tokenizer=self.finbert_tokenizer,
+            )
+            
+            # Train model
+            trainer.train()
+            
+            # Save model
+            trainer.save_model(str(self.model_save_path / 'finbert_finetuned'))
+            self.finbert_tokenizer.save_pretrained(str(self.model_save_path / 'finbert_finetuned'))
+            
+            # Create pipeline for inference
+            self.finbert_pipeline = pipeline(
+                "text-classification",
+                model=str(self.model_save_path / 'finbert_finetuned'),
+                tokenizer=str(self.model_save_path / 'finbert_finetuned'),
+                return_all_scores=True
+            )
+            
+            logger.info("FinBERT training completed")
+            
+        except Exception as e:
+            logger.error(f"FinBERT training failed: {e}")
+            logger.info("Attempting to use pre-trained FinBERT without fine-tuning...")
+            
+            try:
+                # Fallback to using the original model without fine-tuning
+                self.finbert_pipeline = pipeline(
+                    "text-classification",
+                    model="yiyanghkust/finbert-tone",
+                    return_all_scores=True
+                )
+                logger.info("Using pre-trained FinBERT without fine-tuning")
+            except Exception as e2:
+                logger.error(f"Failed to load pre-trained FinBERT: {e2}")
+                self.finbert_pipeline = None
     
     def evaluate_models(self, test_df: pd.DataFrame) -> Dict:
         """Evaluate both models on test set"""
