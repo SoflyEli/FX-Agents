@@ -25,6 +25,15 @@ from typing import Dict, List, Tuple, Union
 import warnings
 warnings.filterwarnings('ignore')
 
+# Download NLTK data immediately
+try:
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('wordnet', quiet=True)
+    nltk.download('omw-1.4', quiet=True)  # Additional data for wordnet
+except Exception as e:
+    print(f"Warning: Could not download some NLTK data: {e}")
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
