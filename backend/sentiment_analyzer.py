@@ -33,24 +33,37 @@ class TextPreprocessor:
     """Handles text preprocessing for both traditional ML and transformer models"""
     
     def __init__(self):
-        # Download required NLTK data
+        # Download required NLTK data with better error handling
+        nltk_downloads = [
+            ('punkt', 'tokenizers/punkt'),
+            ('stopwords', 'corpora/stopwords'),
+            ('wordnet', 'corpora/wordnet')
+        ]
+        
+        for name, path in nltk_downloads:
+            try:
+                nltk.data.find(path)
+                logger.info(f"NLTK {name} already available")
+            except LookupError:
+                try:
+                    logger.info(f"Downloading NLTK {name}...")
+                    nltk.download(name, quiet=True)
+                    logger.info(f"Successfully downloaded NLTK {name}")
+                except Exception as e:
+                    logger.warning(f"Failed to download NLTK {name}: {e}")
+        
+        # Initialize with fallback
         try:
-            nltk.data.find('tokenizers/punkt')
-        except LookupError:
-            nltk.download('punkt')
+            self.stop_words = set(stopwords.words('english'))
+        except Exception as e:
+            logger.warning(f"Could not load stopwords, using fallback: {e}")
+            self.stop_words = set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'])
         
         try:
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            nltk.download('stopwords')
-            
-        try:
-            nltk.data.find('corpora/wordnet')
-        except LookupError:
-            nltk.download('wordnet')
-        
-        self.stop_words = set(stopwords.words('english'))
-        self.lemmatizer = WordNetLemmatizer()
+            self.lemmatizer = WordNetLemmatizer()
+        except Exception as e:
+            logger.warning(f"Could not initialize lemmatizer: {e}")
+            self.lemmatizer = None
     
     def clean_text(self, text: str) -> str:
         """Basic text cleaning"""
