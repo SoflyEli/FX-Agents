@@ -341,16 +341,33 @@ class ForexSentimentAnalyzer:
             
             for text in test_df['processed_transformer']:
                 result = self.finbert_pipeline(text)
-                # Map FinBERT labels to our format
-                label_map = {'LABEL_0': 0, 'LABEL_1': 1, 'LABEL_2': 2}
-                pred_label = label_map[result[0]['label']]
-                finbert_predictions.append(pred_label)
                 
-                # Get probabilities for all classes
-                probs = [0.0, 0.0, 0.0]
-                for item in result:
-                    probs[label_map[item['label']]] = item['score']
-                finbert_probabilities.append(probs)
+                # Handle FinBERT result format: [[{'label': 'Positive', 'score': 0.99}, ...]]
+                if result and len(result) > 0 and len(result[0]) > 0:
+                    scores = result[0]  # Get the inner list
+                    
+                    # Get the highest scoring prediction
+                    best_pred = max(scores, key=lambda x: x['score'])
+                    
+                    # Map FinBERT labels to our format
+                    label_map = {'Positive': 0, 'Neutral': 1, 'Negative': 2}  # bullish, neutral, bearish
+                    pred_label = label_map[best_pred['label']]
+                    finbert_predictions.append(pred_label)
+                    
+                    # Get probabilities for all classes
+                    probs = [0.0, 0.0, 0.0]
+                    for item in scores:
+                        if item['label'] == 'Positive':
+                            probs[0] = item['score']  # bullish
+                        elif item['label'] == 'Neutral':
+                            probs[1] = item['score']  # neutral
+                        elif item['label'] == 'Negative':
+                            probs[2] = item['score']  # bearish
+                    finbert_probabilities.append(probs)
+                else:
+                    # Fallback if result format is unexpected
+                    finbert_predictions.append(1)  # neutral
+                    finbert_probabilities.append([0.0, 1.0, 0.0])
             
             results['finbert'] = {
                 'accuracy': accuracy_score(test_df['label_encoded'], finbert_predictions),
