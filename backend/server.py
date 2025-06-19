@@ -9,7 +9,10 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 import uuid
 from datetime import datetime
-from .sentiment_analyzer import ForexSentimentAnalyzer
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+from sentiment_analyzer import ForexSentimentAnalyzer
 import asyncio
 from contextlib import asynccontextmanager
 
